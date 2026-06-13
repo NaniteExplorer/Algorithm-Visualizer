@@ -19,11 +19,13 @@ export function Hero() {
 
     const engine = new VisualizationEngine({
       enableControls: false,
-      autoRotate: true,
-      bloomStrength: 1.1,
-      bloomRadius: 0.7,
-      bloomThreshold: 0.08,
-      cameraPosition: [0, 6, 70],
+      autoRotate: false,
+      // Restrained bloom: enough to make the nodes glow, not so much that the
+      // scene blooms into a white wash behind the wordmark.
+      bloomStrength: 0.55,
+      bloomRadius: 0.6,
+      bloomThreshold: 0.22,
+      cameraPosition: [0, 4, 64],
       cameraTarget: [0, 0, 0],
     });
     engine.mount(container);
@@ -50,9 +52,12 @@ export function Hero() {
     >
       <div ref={canvasRef} className="absolute inset-0" aria-hidden />
 
-      {/* Vignette + bottom fade so the wordmark stays legible over the scene. */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_35%,_rgba(5,6,10,0.85)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-surface-950 to-transparent" />
+      {/* Layered legibility scrim: a soft central pool lifts contrast behind the
+          wordmark, an edge vignette frames the scene, and a bottom fade hands off
+          cleanly to the page below. */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_center,_rgba(5,6,10,0.7)_0%,_transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_45%,_rgba(5,6,10,0.6)_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-surface-950 via-surface-950/70 to-transparent" />
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center">
         <span className="mb-5 animate-fade-up rounded-full border border-surface-700 bg-surface-900/50 px-4 py-1.5 font-mono text-xs uppercase tracking-[0.3em] text-accent-glow backdrop-blur">

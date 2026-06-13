@@ -9,6 +9,9 @@ import { ShellSort } from './ShellSort';
 import { CocktailSort } from './CocktailSort';
 import { CombSort } from './CombSort';
 import { RadixSort } from './RadixSort';
+import { GnomeSort } from './GnomeSort';
+import { OddEvenSort } from './OddEvenSort';
+import { PancakeSort } from './PancakeSort';
 
 /**
  * Sorting category barrel.
@@ -28,6 +31,9 @@ export const SORTING_ALGORITHMS = [
   new QuickSort(),
   new HeapSort(),
   new RadixSort(),
+  new GnomeSort(),
+  new OddEvenSort(),
+  new PancakeSort(),
 ] as const;
 
 algorithmRegistry.registerAll(SORTING_ALGORITHMS);
@@ -43,6 +49,9 @@ export {
   CocktailSort,
   CombSort,
   RadixSort,
+  GnomeSort,
+  OddEvenSort,
+  PancakeSort,
 };
 export * from './SortStep';
 export type { SortTracer } from './SortTracer';
