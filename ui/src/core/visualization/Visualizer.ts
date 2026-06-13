@@ -1,0 +1,58 @@
+import * as THREE from 'three';
+import type { FrameContext, VisualizationEngine } from './engine/VisualizationEngine';
+
+/**
+ * Base class for every scene-level visualization (sorting bars today; graph,
+ * tree and searching scenes in future). It standardises the attach/detach
+ * lifecycle against the engine and guarantees deterministic resource cleanup.
+ *
+ * Concrete visualizers own a `group`; everything they add to it is removed and
+ * disposed automatically when the visualizer detaches. They implement three
+ * hooks: build on attach, animate per frame, release on dispose.
+ */
+export abstract class Visualizer {
+  protected readonly group = new THREE.Group();
+  protected engine: VisualizationEngine | null = null;
+  private unsubscribe: (() => void) | null = null;
+
+  /** Wire this visualizer into a running engine. */
+  attach(engine: VisualizationEngine): void {
+    if (this.engine) this.detach();
+    this.engine = engine;
+    engine.scene.add(this.group);
+    this.onAttach(engine);
+    this.unsubscribe = engine.onFrame((ctx) => this.onFrame(ctx));
+  }
+
+  /** Remove from the engine and free all GPU resources held by `group`. */
+  detach(): void {
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+    this.onDispose();
+    if (this.engine) this.engine.scene.remove(this.group);
+    this.disposeGroup();
+    this.engine = null;
+  }
+
+  // ── Subclass contract ───────────────────────────────────────────────
+
+  /** Build initial scene content. */
+  protected abstract onAttach(engine: VisualizationEngine): void;
+  /** Advance animation each frame (tweening, idle motion). */
+  protected abstract onFrame(ctx: FrameContext): void;
+  /** Release any non-`group` resources (shared geometries, etc.). */
+  protected abstract onDispose(): void;
+
+  // ── Shared helpers ──────────────────────────────────────────────────
+
+  private disposeGroup(): void {
+    this.group.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      mesh.geometry?.dispose?.();
+      const material = mesh.material;
+      if (Array.isArray(material)) material.forEach((m) => m.dispose());
+      else material?.dispose?.();
+    });
+    this.group.clear();
+  }
+}

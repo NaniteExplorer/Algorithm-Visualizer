@@ -1,70 +1,77 @@
-# Getting Started with Create React App
+# AlgoViz
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An enterprise-grade, **OOP**, **Three.js**-powered algorithm visualization platform built on **Next.js 15** + **TypeScript**. Classic algorithms are rendered as living, glowing 3D geometry with full transport controls (play / pause / step / scrub / speed).
 
-## Available Scripts
+```bash
+npm install
+npm run dev        # http://localhost:3000
+npm run build      # production build
+npm run typecheck  # strict tsc, no emit
+```
 
-In the project directory, you can run:
+## Architecture
 
-### `npm start`
+The codebase is organised in strict layers, each ignorant of the ones above it. Data flows **down** (algorithm → steps → model → renderer); time flows from a single clock (the engine's render loop).
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```
+┌─────────────────────────────────────────────────────────────┐
+│ React / Next.js  (app/, src/components, src/hooks)            │
+│   useVisualizer ── bridges the imperative world to React      │
+├─────────────────────────────────────────────────────────────┤
+│ Playback         (src/core/playback)                          │
+│   PlaybackController — drives a step timeline over time        │
+├──────────────────────────────┬──────────────────────────────┤
+│ Algorithm (logic)            │ Visualization (rendering)      │
+│  src/core/algorithms         │  src/core/visualization        │
+│   Algorithm → Step[]         │   VisualizationEngine (Three)  │
+│   AlgorithmRegistry          │   Visualizer (abstract)        │
+│                              │   VisualizerFactory            │
+├──────────────────────────────┴──────────────────────────────┤
+│ Model            (src/core/model)                             │
+│   ArrayModel — pure, replayable state machine                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Key design decisions
 
-### `npm test`
+- **Steps are the only contract** between an algorithm and its renderer. An
+  algorithm emits a deterministic `SortStep[]`; the visualizer pulls model state
+  every frame. Neither knows the other exists — this is what makes one
+  `SortingVisualizer` render *every* sort.
+- **Replay-based scrubbing.** Because algorithms are deterministic and the model
+  is a pure state machine, stepping backward / seeking is just "rewind + replay
+  from start". No inverse-step bookkeeping.
+- **Single clock.** The `VisualizationEngine` render loop is the only time
+  source: it advances playback (mutating the model) and the visualizer reads the
+  model on the same frame. Discrete steps become smooth, frame-rate-independent
+  motion via critically-damped tweening.
+- **Raw Three.js wrapped in OOP** (not react-three-fiber), per the brief — the
+  engine, visualizers and scene objects are plain classes with explicit
+  lifecycles and deterministic GPU-resource disposal.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Extending the platform
 
-### `npm run build`
+### Add a new sorting algorithm
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Create `src/core/algorithms/sorting/ShellSort.ts` extending `SortingAlgorithm`;
+   implement `sort(tracer)` against the `SortTracer` API.
+2. Add one line to `src/core/algorithms/sorting/index.ts`.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+It now appears in the selector, routing and visualizer automatically.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Add a whole new family (graph, tree, …)
 
-### `npm run eject`
+1. Define its step union (e.g. `graph/GraphStep.ts`) and `GraphModel`
+   implementing `StepConsumer`.
+2. Implement a `GraphVisualizer extends Visualizer`.
+3. Add a `case` to `VisualizerFactory`.
+4. Register its algorithms via a `graph/index.ts` barrel imported by
+   `src/core/algorithms/index.ts`.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+The engine, playback controller, hook and UI are all category-agnostic and need
+no changes.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Tech
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Next.js 15 (App Router) · React 19 · TypeScript (strict) · Three.js (WebGL +
+UnrealBloom post-processing) · Tailwind CSS.
