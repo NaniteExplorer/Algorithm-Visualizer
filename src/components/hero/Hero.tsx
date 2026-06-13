@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { algorithmRegistry } from '@/core/algorithms';
 import { VisualizationEngine } from '@/core/visualization/engine/VisualizationEngine';
 import { HeroVisualizer } from '@/core/visualization/hero/HeroVisualizer';
 
 /**
  * Full-bleed AlgoViz hero. Mounts a dedicated `VisualizationEngine` configured
- * for an idle, auto-rotating constellation (no user controls, stronger bloom),
- * with the brand wordmark and CTA layered above the canvas.
+ * for an idle, auto-rotating scene (no user controls, stronger bloom), with the
+ * brand wordmark, live platform stats and CTAs layered above the canvas.
  */
 export function Hero() {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -22,7 +23,7 @@ export function Hero() {
       bloomStrength: 1.1,
       bloomRadius: 0.7,
       bloomThreshold: 0.08,
-      cameraPosition: [0, 4, 72],
+      cameraPosition: [0, 6, 70],
       cameraTarget: [0, 0, 0],
     });
     engine.mount(container);
@@ -35,12 +36,18 @@ export function Hero() {
     };
   }, []);
 
+  const algorithmCount = algorithmRegistry.list().length;
+  const familyCount = algorithmRegistry.categories().length;
+
   const scrollToStudio = () => {
-    document.getElementById('studio')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <section className="relative flex h-[100svh] min-h-[640px] w-full items-center justify-center overflow-hidden">
+    <section
+      id="top"
+      className="relative flex h-[100svh] min-h-[640px] w-full items-center justify-center overflow-hidden"
+    >
       <div ref={canvasRef} className="absolute inset-0" aria-hidden />
 
       {/* Vignette + bottom fade so the wordmark stays legible over the scene. */}
@@ -49,7 +56,7 @@ export function Hero() {
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center">
         <span className="mb-5 animate-fade-up rounded-full border border-surface-700 bg-surface-900/50 px-4 py-1.5 font-mono text-xs uppercase tracking-[0.3em] text-accent-glow backdrop-blur">
-          Algorithm Visualization, in 3D
+          Learn algorithms by watching them
         </span>
 
         <h1
@@ -63,8 +70,9 @@ export function Hero() {
           className="mt-5 max-w-xl animate-fade-up text-base leading-relaxed text-slate-400 md:text-lg"
           style={{ animationDelay: '0.16s' }}
         >
-          Watch classic algorithms come alive as living, glowing geometry. Step through
-          every comparison and swap, or let them play — rendered in real time with WebGL.
+          An interactive 3D playground for sorting, searching, graph and tree algorithms.
+          Step through every comparison, swap and visit — or let them play — rendered live with
+          WebGL.
         </p>
 
         <div
@@ -79,13 +87,33 @@ export function Hero() {
             Launch the Studio
           </button>
           <a
-            href="https://github.com"
+            href="#families"
             className="rounded-xl border border-surface-700 px-7 py-3 font-medium text-slate-300 transition-colors hover:bg-surface-800"
           >
-            View on GitHub
+            Browse Families
           </a>
+        </div>
+
+        <div
+          className="mt-12 flex animate-fade-up items-center gap-8 font-mono text-sm text-slate-400"
+          style={{ animationDelay: '0.32s' }}
+        >
+          <Stat value={`${algorithmCount}`} label="algorithms" />
+          <span className="h-8 w-px bg-surface-700" />
+          <Stat value={`${familyCount}`} label="families" />
+          <span className="h-8 w-px bg-surface-700" />
+          <Stat value="3D" label="WebGL scenes" />
         </div>
       </div>
     </section>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <span className="flex flex-col items-center">
+      <span className="text-2xl font-semibold text-slate-100">{value}</span>
+      <span className="text-xs uppercase tracking-wider">{label}</span>
+    </span>
   );
 }

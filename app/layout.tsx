@@ -6,10 +6,22 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'AlgoViz — Algorithm Visualization in 3D',
+  title: 'AlgoViz — Learn Algorithms in 3D',
   description:
-    'An enterprise-grade, WebGL-powered platform for visualizing classic algorithms as living 3D geometry. Built with Next.js and Three.js.',
-  keywords: ['algorithms', 'visualization', 'three.js', 'sorting', 'webgl', 'next.js'],
+    'An interactive, WebGL-powered platform for learning sorting, searching, graph and tree algorithms as living 3D geometry. Step through every operation. Built with Next.js and Three.js.',
+  keywords: [
+    'algorithms',
+    'visualization',
+    'three.js',
+    'sorting',
+    'searching',
+    'graphs',
+    'trees',
+    'data structures',
+    'webgl',
+    'next.js',
+    'learn to code',
+  ],
 };
 
 export const viewport: Viewport = {

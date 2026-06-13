@@ -1,23 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { algorithmRegistry, AlgorithmCategory, type AlgorithmMeta } from '@/core/algorithms';
-import type { SortStep } from '@/core/algorithms/sorting/SortStep';
-import { describeSortStep } from '@/core/algorithms/sorting/describe';
+import { algorithmRegistry, type AlgorithmCategory, type AlgorithmMeta } from '@/core/algorithms';
 import { PlaybackController } from '@/core/playback/PlaybackController';
 import { VisualizationEngine } from '@/core/visualization/engine/VisualizationEngine';
 import { VisualizerFactory } from '@/core/visualization/VisualizerFactory';
-
-const DEFAULT_SIZE = 40;
-const VALUE_MIN = 8;
-const VALUE_MAX = 100;
-
-function randomArray(size: number): number[] {
-  return Array.from(
-    { length: size },
-    () => Math.floor(Math.random() * (VALUE_MAX - VALUE_MIN + 1)) + VALUE_MIN,
-  );
-}
+import type { ControlSpec, LegendItem, MetricSpec } from '@/core/visualization/CategoryModule';
 
 export interface VisualizerActions {
   play(): void;
@@ -29,43 +17,49 @@ export interface VisualizerActions {
   setSpeed(stepsPerSecond: number): void;
   regenerate(): void;
   selectAlgorithm(id: string): void;
-  setArraySize(size: number): void;
+  setParam(key: string, value: number): void;
 }
 
 /**
- * The single React ⇄ engine bridge.
+ * The single React ⇄ engine bridge, generic over the algorithm family.
  *
- * It owns the imperative object graph (engine, playback controller, model +
- * visualizer bundle) in refs so React re-renders never recreate the WebGL
- * world, and surfaces playback state through `useSyncExternalStore` so the UI
- * stays in lock-step with the render loop without polling. Everything below the
- * hook is category-blind; today it wires the Sorting bundle, but swapping in a
- * future category is a one-line factory change.
+ * It owns the imperative object graph (engine, playback controller, and the
+ * family's {@link CategoryModule}) in refs so React re-renders never recreate
+ * the WebGL world, and surfaces playback state through `useSyncExternalStore`
+ * so the UI stays in lock-step with the render loop without polling.
+ *
+ * Everything below the hook is category-blind: the only family-specific code is
+ * the `CategoryModule` resolved from the factory. The hook is instantiated once
+ * per category (the studio remounts on category change via a React `key`), which
+ * guarantees clean WebGL teardown without any dynamic re-subscription.
  */
-export function useVisualizer() {
+export function useVisualizer(category: AlgorithmCategory) {
   const algorithms = useMemo<AlgorithmMeta[]>(
-    () => algorithmRegistry.listByCategory(AlgorithmCategory.Sorting).map((a) => a.meta),
-    [],
+    () => algorithmRegistry.listByCategory(category).map((a) => a.meta),
+    [category],
   );
 
   const [algorithmId, setAlgorithmId] = useState(algorithms[0]?.id ?? '');
-  const [arraySize, setArraySizeState] = useState(DEFAULT_SIZE);
 
-  // Imperative singletons — created exactly once for the component's lifetime.
+  // Imperative singletons — created exactly once for this category's lifetime.
   const graph = useRef<{
-    bundle: ReturnType<typeof VisualizerFactory.create>;
-    controller: PlaybackController<SortStep>;
+    vizModule: ReturnType<typeof VisualizerFactory.create>;
+    controller: PlaybackController<unknown>;
   } | null>(null);
   if (!graph.current) {
-    const bundle = VisualizerFactory.create(AlgorithmCategory.Sorting);
-    const controller = new PlaybackController<SortStep>(bundle.model, {
-      getMetrics: () => ({ ...bundle.model.metrics }),
-      getNote: (step) => describeSortStep(step),
+    const vizModule = VisualizerFactory.create(category);
+    const controller = new PlaybackController<unknown>(vizModule.model, {
+      getMetrics: () => vizModule.metrics(),
+      getNote: (step) => vizModule.describe(step),
       speed: 30,
     });
-    graph.current = { bundle, controller };
+    graph.current = { vizModule, controller };
   }
-  const { bundle, controller } = graph.current;
+  const { vizModule, controller } = graph.current;
+
+  const [params, setParams] = useState<Record<string, number>>(() =>
+    Object.fromEntries(vizModule.controls.map((c) => [c.key, c.default])),
+  );
 
   const snapshot = useSyncExternalStore(
     controller.subscribe,
@@ -74,47 +68,40 @@ export function useVisualizer() {
   );
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const currentArray = useRef<number[]>([]);
   const algorithmIdRef = useRef(algorithmId);
-  const arraySizeRef = useRef(arraySize);
+  const paramsRef = useRef(params);
   algorithmIdRef.current = algorithmId;
+  paramsRef.current = params;
 
-  // Recompute the timeline for the *current* dataset + selected algorithm.
-  const loadTimeline = useCallback(
-    (array: number[]) => {
-      const algorithm = algorithmRegistry.require(algorithmIdRef.current);
-      bundle.model.reset(array);
-      controller.load(algorithm.run(array) as SortStep[]);
-    },
-    [bundle, controller],
-  );
+  // Run the *current* algorithm against the *current* dataset.
+  const reloadTimeline = useCallback(() => {
+    const algorithm = algorithmRegistry.require(algorithmIdRef.current);
+    controller.load(vizModule.buildTimeline(algorithm));
+  }, [vizModule, controller]);
 
-  const regenerate = useCallback(
-    (size = arraySizeRef.current) => {
-      const array = randomArray(size);
-      currentArray.current = array;
-      loadTimeline(array);
-      bundle.rebuild();
-    },
-    [bundle, loadTimeline],
-  );
+  // Fresh random dataset → re-layout the scene → recompute the timeline.
+  const regenerate = useCallback(() => {
+    vizModule.regenerate(paramsRef.current);
+    vizModule.rebuild();
+    reloadTimeline();
+  }, [vizModule, reloadTimeline]);
 
   // Engine lifecycle — mount on first paint, fully dispose on unmount.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const engine = new VisualizationEngine({ enableControls: true, autoRotate: false });
+    const engine = new VisualizationEngine(vizModule.engineOptions);
     engine.mount(container);
-    bundle.visualizer.attach(engine);
+    vizModule.visualizer.attach(engine);
     // The engine's clock is the single time source: it advances playback, which
     // mutates the model, which the visualizer reads on the very same frame.
     const unsubscribe = engine.onFrame((ctx) => controller.advance(ctx.dt * 1000));
-    regenerate(arraySizeRef.current);
+    regenerate();
 
     return () => {
       unsubscribe();
-      bundle.visualizer.detach();
+      vizModule.visualizer.detach();
       engine.dispose();
     };
     // Intentionally run once: the imperative graph is stable across renders.
@@ -134,15 +121,18 @@ export function useVisualizer() {
       selectAlgorithm: (id) => {
         setAlgorithmId(id);
         algorithmIdRef.current = id;
-        loadTimeline(currentArray.current);
+        reloadTimeline();
       },
-      setArraySize: (size) => {
-        setArraySizeState(size);
-        arraySizeRef.current = size;
-        regenerate(size);
+      setParam: (key, value) => {
+        setParams((prev) => {
+          const next = { ...prev, [key]: value };
+          paramsRef.current = next;
+          return next;
+        });
+        regenerate();
       },
     }),
-    [controller, regenerate, loadTimeline],
+    [controller, regenerate, reloadTimeline],
   );
 
   const currentMeta = useMemo(
@@ -150,5 +140,16 @@ export function useVisualizer() {
     [algorithms, algorithmId],
   );
 
-  return { containerRef, snapshot, algorithms, algorithmId, currentMeta, arraySize, actions };
+  return {
+    containerRef,
+    snapshot,
+    algorithms,
+    algorithmId,
+    currentMeta,
+    params,
+    controls: vizModule.controls as ControlSpec[],
+    metricSpecs: vizModule.metricSpecs as MetricSpec[],
+    legend: vizModule.legend() as LegendItem[],
+    actions,
+  };
 }

@@ -1,29 +1,33 @@
 'use client';
 
 import type { RefObject } from 'react';
+import type { MetricSpec } from '@/core/visualization/CategoryModule';
 import type { PlaybackSnapshot } from '@/core/playback/PlaybackController';
 
 interface Props {
   containerRef: RefObject<HTMLDivElement | null>;
   snapshot: PlaybackSnapshot;
+  metricSpecs: MetricSpec[];
   accent: string;
 }
 
 /**
  * The WebGL viewport. The bare `div` is handed to the engine via `containerRef`;
- * everything else is a non-interactive HUD overlaid on top of the canvas.
+ * everything else is a non-interactive HUD overlaid on top of the canvas. The
+ * metric chips are driven by the active family's `metricSpecs`, so the HUD is
+ * fully category-agnostic.
  */
-export function VisualizerCanvas({ containerRef, snapshot, accent }: Props) {
+export function VisualizerCanvas({ containerRef, snapshot, metricSpecs, accent }: Props) {
   const { metrics, note, status } = snapshot;
   return (
     <div className="relative h-full w-full overflow-hidden rounded-2xl border border-surface-700 bg-surface-950">
       <div ref={containerRef} className="absolute inset-0" />
 
       {/* Live metrics — top-left HUD */}
-      <div className="pointer-events-none absolute left-4 top-4 flex gap-2 font-mono text-xs">
-        <Metric label="comparisons" value={metrics.comparisons ?? 0} />
-        <Metric label="swaps" value={metrics.swaps ?? 0} />
-        <Metric label="writes" value={metrics.writes ?? 0} />
+      <div className="pointer-events-none absolute left-4 top-4 flex flex-wrap gap-2 font-mono text-xs">
+        {metricSpecs.map((m) => (
+          <Metric key={m.key} label={m.label} value={metrics[m.key] ?? 0} />
+        ))}
       </div>
 
       {/* Status pill — top-right */}
@@ -38,8 +42,8 @@ export function VisualizerCanvas({ containerRef, snapshot, accent }: Props) {
 
       {/* Step narration — bottom */}
       {note && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
-          <span className="rounded-full border border-surface-700 bg-surface-900/80 px-4 py-1.5 font-mono text-xs text-slate-300 backdrop-blur">
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
+          <span className="max-w-full truncate rounded-full border border-surface-700 bg-surface-900/80 px-4 py-1.5 font-mono text-xs text-slate-300 backdrop-blur">
             {note}
           </span>
         </div>

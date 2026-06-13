@@ -1,20 +1,23 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import type { ControlSpec } from '@/core/visualization/CategoryModule';
 import type { PlaybackSnapshot } from '@/core/playback/PlaybackController';
 import type { VisualizerActions } from '@/hooks/useVisualizer';
-import { PlayIcon, PauseIcon, StepBackIcon, StepForwardIcon, ShuffleIcon } from './icons';
+import { PlayIcon, PauseIcon, StepBackIcon, StepForwardIcon, ShuffleIcon, RestartIcon } from './icons';
 
 interface Props {
   snapshot: PlaybackSnapshot;
-  arraySize: number;
+  controls: ControlSpec[];
+  params: Record<string, number>;
   accent: string;
   actions: VisualizerActions;
 }
 
-export function ControlPanel({ snapshot, arraySize, accent, actions }: Props) {
+export function ControlPanel({ snapshot, controls, params, accent, actions }: Props) {
   const playing = snapshot.status === 'playing';
   const total = snapshot.total;
+  const atStart = snapshot.cursor < 0;
 
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-surface-700 bg-surface-900/60 p-5">
@@ -40,6 +43,9 @@ export function ControlPanel({ snapshot, arraySize, accent, actions }: Props) {
 
       {/* Transport */}
       <div className="flex items-center justify-center gap-2">
+        <IconButton label="Restart" onClick={() => actions.seek(-1)} disabled={atStart}>
+          <RestartIcon />
+        </IconButton>
         <IconButton label="Step back" onClick={actions.stepBackward}>
           <StepBackIcon />
         </IconButton>
@@ -56,7 +62,7 @@ export function ControlPanel({ snapshot, arraySize, accent, actions }: Props) {
         </IconButton>
       </div>
 
-      {/* Sliders */}
+      {/* Speed (universal) */}
       <Slider
         label="Speed"
         value={snapshot.speed}
@@ -67,15 +73,21 @@ export function ControlPanel({ snapshot, arraySize, accent, actions }: Props) {
         accent={accent}
         onChange={actions.setSpeed}
       />
-      <Slider
-        label="Array size"
-        value={arraySize}
-        min={5}
-        max={120}
-        step={1}
-        accent={accent}
-        onChange={actions.setArraySize}
-      />
+
+      {/* Family-specific parameters */}
+      {controls.map((c) => (
+        <Slider
+          key={c.key}
+          label={c.label}
+          value={params[c.key] ?? c.default}
+          min={c.min}
+          max={c.max}
+          step={c.step}
+          suffix={c.suffix ?? ''}
+          accent={accent}
+          onChange={(v) => actions.setParam(c.key, v)}
+        />
+      ))}
 
       {/* Regenerate */}
       <button
@@ -83,7 +95,7 @@ export function ControlPanel({ snapshot, arraySize, accent, actions }: Props) {
         className="flex items-center justify-center gap-2 rounded-xl border border-surface-700 bg-surface-800 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-surface-700"
       >
         <ShuffleIcon width={16} height={16} />
-        Generate new array
+        Generate new dataset
       </button>
     </div>
   );
@@ -93,16 +105,19 @@ function IconButton({
   children,
   label,
   onClick,
+  disabled = false,
 }: {
   children: ReactNode;
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-surface-700 bg-surface-800 text-slate-300 transition-colors hover:bg-surface-700"
+      disabled={disabled}
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-surface-700 bg-surface-800 text-slate-300 transition-colors hover:bg-surface-700 disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
     </button>

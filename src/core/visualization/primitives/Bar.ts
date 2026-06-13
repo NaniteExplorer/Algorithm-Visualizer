@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /**
- * A single animated 3D bar.
+ * A single animated 3D bar/pillar.
  *
  * The bar separates *target* state (set instantly when a step is applied) from
  * *rendered* state (eased toward the target every frame). This is the core of
@@ -10,7 +10,7 @@ import * as THREE from 'three';
  * playback rate reads as fluid rather than strobing.
  *
  * Geometry is a shared unit cube scaled per-bar, keeping draw setup cheap even
- * for large arrays.
+ * for large arrays. Shared by the sorting and searching visualizers.
  */
 export class Bar {
   readonly mesh: THREE.Mesh;

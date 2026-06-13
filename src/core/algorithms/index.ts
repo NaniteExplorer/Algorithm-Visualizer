@@ -6,6 +6,9 @@
  * families land, add their barrels here in the same way.
  */
 import './sorting';
+import './searching';
+import './graph';
+import './tree';
 
 export * from './types';
 export { algorithmRegistry, AlgorithmRegistry } from './AlgorithmRegistry';

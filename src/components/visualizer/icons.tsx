@@ -44,3 +44,10 @@ export const ShuffleIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
   </svg>
 );
+
+export const RestartIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+    <path d="M3 3v5h5" />
+  </svg>
+);

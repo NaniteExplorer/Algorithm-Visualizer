@@ -3,7 +3,7 @@ import { Visualizer } from '../Visualizer';
 import type { FrameContext, VisualizationEngine } from '../engine/VisualizationEngine';
 import { ArrayModel } from '@/core/model/ArrayModel';
 import { ROLE_STYLES, SCENE } from '@/theme';
-import { Bar } from './Bar';
+import { Bar } from '../primitives/Bar';
 
 /**
  * Renders an `ArrayModel` as a row of glowing, height-mapped 3D bars on a
